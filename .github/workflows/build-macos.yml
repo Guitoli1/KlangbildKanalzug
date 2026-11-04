@@ -1,0 +1,59 @@
+name: macOS Build (Kanalzug + Drive)
+
+on:
+  push:
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 90
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: "Konfigurieren (Universal: Apple Silicon + Intel)"
+        run: >
+          cmake -B build -G Xcode
+          -DCMAKE_OSX_ARCHITECTURES="arm64;x86_64"
+          -DCMAKE_OSX_DEPLOYMENT_TARGET=11.0
+
+      - name: Kompilieren
+        run: cmake --build build --config Release --parallel 4
+
+      # Sicherheitsnetz: Die NAM-Modelltypen müssen im fertigen Kanalzug enthalten sein
+      - name: NAM-Code im Plugin prüfen
+        run: |
+          BIN="build/KlangbildKanalzug_artefacts/Release/AU/Klangbild Kanalzug.component/Contents/MacOS/Klangbild Kanalzug"
+          COUNT=$(nm -C "$BIN" | grep -c "nam::wavenet" || true)
+          echo "WaveNet-Symbole: $COUNT"
+          test "$COUNT" -gt 0
+
+      - name: Ad-hoc signieren und packen
+        run: |
+          mkdir -p dist
+          for P in Kanalzug Drive; do
+            cd "build/Klangbild${P}_artefacts/Release"
+            codesign --force --deep --sign - "AU/Klangbild ${P}.component"
+            codesign --force --deep --sign - "VST3/Klangbild ${P}.vst3"
+            codesign --force --deep --sign - "Standalone/Klangbild ${P}.app"
+            ditto -c -k --sequesterRsrc --keepParent "AU/Klangbild ${P}.component"  "$GITHUB_WORKSPACE/dist/Klangbild-${P}-AU.zip"
+            ditto -c -k --sequesterRsrc --keepParent "VST3/Klangbild ${P}.vst3"      "$GITHUB_WORKSPACE/dist/Klangbild-${P}-VST3.zip"
+            ditto -c -k --sequesterRsrc --keepParent "Standalone/Klangbild ${P}.app" "$GITHUB_WORKSPACE/dist/Klangbild-${P}-Standalone.zip"
+            cd "$GITHUB_WORKSPACE"
+          done
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: Klangbild-Kanalzug-macOS
+          path: dist/
+
+      - name: AU-Validierung (auval)
+        run: |
+          mkdir -p ~/Library/Audio/Plug-Ins/Components
+          cp -R "build/KlangbildKanalzug_artefacts/Release/AU/Klangbild Kanalzug.component" ~/Library/Audio/Plug-Ins/Components/
+          cp -R "build/KlangbildDrive_artefacts/Release/AU/Klangbild Drive.component" ~/Library/Audio/Plug-Ins/Components/
+          killall -9 AudioComponentRegistrar || true
+          sleep 3
+          auval -v aufx Kbkz Klbd
+          auval -v aufx Kbdr Klbd
