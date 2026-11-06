@@ -4,6 +4,8 @@
 
 // Der Kanalzug verkettet alle Klangbild-Plugins als Module:
 // Kalibrator → Drive → Duo → Box → Opto → EQ → Raum
+// wahlweise mit dem Opto vor dem Drive (Kompressor vor dem Amp):
+// Kalibrator → Opto → Drive → Duo → Box → EQ → Raum
 class KanalzugAudioProcessor : public juce::AudioProcessor, private juce::Timer
 {
 public:
@@ -41,6 +43,13 @@ public:
 
     juce::AudioProcessor& getModule (int index) { return *modules[(size_t) index].processor; }
     bool isModuleOn (int index) const { return modules[(size_t) index].on->load() > 0.5f; }
+    static constexpr int optoIndex = 4;
+    bool isOptoBeforeDrive() const { return optoPre->load() > 0.5f; }
+    // Reihenfolge der Module im Signalweg (Indizes in moduleInfos)
+    static std::array<int, 7> orderFor (bool optoBeforeDrive)
+    {
+        return optoBeforeDrive ? std::array<int, 7> { 0, 4, 1, 2, 3, 5, 6 } : std::array<int, 7> { 0, 1, 2, 3, 4, 5, 6 };
+    }
     static juce::String onParamID (int index) { return juce::String ("on_") + moduleInfos()[(size_t) index].id; }
 
     juce::AudioProcessorValueTreeState apvts;
@@ -61,6 +70,9 @@ private:
     juce::AudioBuffer<float> dry;
     juce::MidiBuffer midi;
     std::atomic<float>* pOut = nullptr;
+    std::atomic<float>* optoPre = nullptr;
+    bool activeOptoPre = false;              // im Audio-Thread gültige Reihenfolge
+    juce::SmoothedValue<float> smSwap;       // kurzes Ab-/Aufblenden beim Umstecken
     juce::SmoothedValue<float> smOut;
     float vuStateL = 0, vuStateR = 0, vuCoef = 0.001f;
     double sr = 48000.0;

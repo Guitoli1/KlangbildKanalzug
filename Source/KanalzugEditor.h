@@ -33,6 +33,11 @@ private:
     VintageLookAndFeel lnf;
 
     std::array<Tile, KanalzugAudioProcessor::numModules> tiles;
+    juce::ToggleButton optoPosSwitch;
+    std::unique_ptr<ButtonAttachment> optoPosAttachment;
+    bool shownOptoPre = false;
+    void layoutTiles();
+
     juce::Slider outSlider;
     std::unique_ptr<SliderAttachment> outAttachment;
     VuMeter vuLeft { lnf, "L" }, vuRight { lnf, "R" };

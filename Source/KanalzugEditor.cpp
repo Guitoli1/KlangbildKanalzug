@@ -23,6 +23,16 @@ KanalzugAudioProcessorEditor::KanalzugAudioProcessorEditor (KanalzugAudioProcess
         t.attachment = std::make_unique<ButtonAttachment> (proc.apvts, KanalzugAudioProcessor::onParamID (i), t.power);
     }
 
+    // Position des Opto-Kompressors: nach der Box (Standard) oder vor dem Drive
+    optoPosSwitch.setButtonText ("x");
+    optoPosSwitch.getProperties().set ("lamp", (int) lampAmber.getARGB());
+    optoPosSwitch.getProperties().set ("onText", "VOR DRIVE");
+    optoPosSwitch.getProperties().set ("offText", "NACH BOX");
+    optoPosSwitch.setColour (juce::ToggleButton::textColourId, logo);
+    addAndMakeVisible (optoPosSwitch);
+    optoPosAttachment = std::make_unique<ButtonAttachment> (proc.apvts, "optopre", optoPosSwitch);
+    shownOptoPre = proc.isOptoBeforeDrive();
+
     outSlider.setSliderStyle (juce::Slider::RotaryHorizontalVerticalDrag);
     outSlider.setTextBoxStyle (juce::Slider::NoTextBox, true, 0, 0);
     outSlider.setRotaryParameters (juce::MathConstants<float>::pi * 1.2f, juce::MathConstants<float>::pi * 2.8f, true);
@@ -80,6 +90,13 @@ void KanalzugAudioProcessorEditor::layoutModuleEditor()
 
 void KanalzugAudioProcessorEditor::timerCallback()
 {
+    if (proc.isOptoBeforeDrive() != shownOptoPre)
+    {
+        shownOptoPre = proc.isOptoBeforeDrive();
+        layoutTiles();
+        repaint();
+    }
+
     constexpr float dt = 1.0f / 60.0f;
     vuLeft.update (proc.vuL.load(), proc.meterL.exchange (0.0f), dt);
     vuRight.update (proc.vuR.load(), proc.meterR.exchange (0.0f), dt);
@@ -90,6 +107,23 @@ void KanalzugAudioProcessorEditor::timerCallback()
         const float alpha = proc.isModuleOn (i) ? 1.0f : 0.55f;   // ausgeschaltete Module etwas blasser
         if (std::abs (key.getAlpha() - alpha) > 0.01f)
             key.setAlpha (alpha);
+    }
+}
+
+void KanalzugAudioProcessorEditor::layoutTiles()
+{
+    // Kacheln in der aktuellen Signal-Reihenfolge anordnen
+    const int W = getWidth();
+    const int tilesX = 24, tilesW = W - 48;
+    const int gap = 18;
+    const int tw = (tilesW - gap * (KanalzugAudioProcessor::numModules - 1)) / KanalzugAudioProcessor::numModules;
+    const auto order = KanalzugAudioProcessor::orderFor (shownOptoPre);
+    for (int pos = 0; pos < KanalzugAudioProcessor::numModules; ++pos)
+    {
+        auto& t = tiles[(size_t) order[(size_t) pos]];
+        const int x = tilesX + pos * (tw + gap);
+        t.key.setBounds (x, 108, tw, 38);
+        t.power.setBounds (x + (tw - 96) / 2, 148, 96, 32);
     }
 }
 
@@ -132,15 +166,22 @@ void KanalzugAudioProcessorEditor::paint (juce::Graphics& g)
 
     // Pfeile im Signalweg
     g.setColour (gold.withAlpha (0.7f));
+    const auto order = KanalzugAudioProcessor::orderFor (shownOptoPre);
     for (int i = 0; i + 1 < KanalzugAudioProcessor::numModules; ++i)
     {
-        const auto a = tiles[(size_t) i].key.getBounds().toFloat(), b = tiles[(size_t) i + 1].key.getBounds().toFloat();
+        const auto a = tiles[(size_t) order[(size_t) i]].key.getBounds().toFloat(), b = tiles[(size_t) order[(size_t) i + 1]].key.getBounds().toFloat();
         const float y = a.getCentreY(), x0 = a.getRight() + 3.0f, x1 = b.getX() - 3.0f;
         g.drawLine (x0, y, x1 - 4.0f, y, 1.6f);
         juce::Path head;
         head.addTriangle (x1, y, x1 - 6.0f, y - 4.0f, x1 - 6.0f, y + 4.0f);
         g.fillPath (head);
     }
+
+    // Beschriftung Opto-Schalter
+    g.setColour (gold.withAlpha (0.85f));
+    g.setFont (lnf.labelFont (11.0f, 0.2f));
+    g.drawText ("OPTO-POSITION", optoPosSwitch.getBounds().toFloat().withY ((float) optoPosSwitch.getY() - 18.0f).withHeight (14.0f).expanded (20.0f, 0.0f),
+                juce::Justification::centred);
 
     // Ausgang
     const auto ob = outSlider.getBounds().toFloat();
@@ -166,15 +207,8 @@ void KanalzugAudioProcessorEditor::resized()
     outSlider.setBounds (W - 24 - 320 - 86, 14, 78, 74);
 
     header = { 0, 0, W, 186 };
-    const int tilesX = 24, tilesW = W - 48;
-    const int gap = 18;
-    const int tw = (tilesW - gap * (KanalzugAudioProcessor::numModules - 1)) / KanalzugAudioProcessor::numModules;
-    for (int i = 0; i < KanalzugAudioProcessor::numModules; ++i)
-    {
-        const int x = tilesX + i * (tw + gap);
-        tiles[(size_t) i].key.setBounds (x, 108, tw, 38);
-        tiles[(size_t) i].power.setBounds (x + (tw - 96) / 2, 148, 96, 32);
-    }
+    optoPosSwitch.setBounds (W - 24 - 320 - 86 - 150, 36, 130, 40);
+    layoutTiles();
 
     moduleArea = juce::Rectangle<int> (16, 194, W - 32, getHeight() - 194 - 14);
     renderTolex();

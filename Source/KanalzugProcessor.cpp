@@ -32,6 +32,7 @@ juce::AudioProcessorValueTreeState::ParameterLayout KanalzugAudioProcessor::crea
         const juce::String title = juce::String (mi.title).substring (0, 1) + juce::String (mi.title).substring (1).toLowerCase();
         l.add (std::make_unique<juce::AudioParameterBool> (juce::ParameterID { onParamID (i), 1 }, title + " an", mi.defaultOn));
     }
+    l.add (std::make_unique<juce::AudioParameterBool> (juce::ParameterID { "optopre", 1 }, "Opto vor Drive", false));
     l.add (std::make_unique<juce::AudioParameterFloat> (juce::ParameterID { "out", 1 }, "Ausgang",
         juce::NormalisableRange<float> (-24.0f, 12.0f, 0.01f), 0.0f,
         juce::AudioParameterFloatAttributes().withStringFromValueFunction ([] (float v, int) { return (v > 0.0f ? "+" : "") + juce::String (v, 1) + " dB"; })));
@@ -57,6 +58,8 @@ KanalzugAudioProcessor::KanalzugAudioProcessor()
         modules[(size_t) i].processor->setPlayConfigDetails (2, 2, sr, maxBlock);
     }
     pOut = apvts.getRawParameterValue ("out");
+    optoPre = apvts.getRawParameterValue ("optopre");
+    activeOptoPre = optoPre->load() > 0.5f;
     startTimerHz (4);
 }
 
@@ -84,6 +87,9 @@ void KanalzugAudioProcessor::prepareToPlay (double sampleRate, int samplesPerBlo
         m.mix.reset (sr, 0.02);
         m.mix.setCurrentAndTargetValue (m.on->load() > 0.5f ? 1.0f : 0.0f);
     }
+    activeOptoPre = optoPre->load() > 0.5f;
+    smSwap.reset (sr, 0.008);
+    smSwap.setCurrentAndTargetValue (1.0f);
     smOut.reset (sr, 0.03);
     smOut.setCurrentAndTargetValue (juce::Decibels::decibelsToGain (pOut->load()));
     vuCoef = (float) (1.0 - std::exp (-1.0 / (0.01 * sr)));
@@ -122,8 +128,24 @@ void KanalzugAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     if (dry.getNumSamples() < n)
         dry.setSize (2, n, false, false, true);
 
-    for (auto& m : modules)
+    // Opto-Position umstecken: erst kurz ausblenden, dann im stillen Moment umschalten, wieder einblenden
+    const bool wantPre = optoPre->load() > 0.5f;
+    if (wantPre != activeOptoPre)
     {
+        if (! smSwap.isSmoothing() && smSwap.getCurrentValue() <= 0.0f)
+        {
+            activeOptoPre = wantPre;
+            smSwap.setTargetValue (1.0f);
+        }
+        else
+            smSwap.setTargetValue (0.0f);
+    }
+    else
+        smSwap.setTargetValue (1.0f);
+
+    for (int idx : orderFor (activeOptoPre))
+    {
+        auto& m = modules[(size_t) idx];
         m.processor->setPlayHead (getPlayHead());
         m.mix.setTargetValue (m.on->load() > 0.5f ? 1.0f : 0.0f);
 
@@ -159,7 +181,7 @@ void KanalzugAudioProcessor::processBlock (juce::AudioBuffer<float>& buffer, juc
     float* R = stereo.getWritePointer (1);
     for (int i = 0; i < n; ++i)
     {
-        const float g = smOut.getNextValue();
+        const float g = smOut.getNextValue() * smSwap.getNextValue();
         L[i] *= g;
         R[i] *= g;
         vuStateL += (std::abs (L[i]) - vuStateL) * vuCoef;
@@ -217,6 +239,7 @@ void KanalzugAudioProcessor::setStateInformation (const void* data, int sizeInBy
     }
     for (auto& m : modules)
         m.mix.setCurrentAndTargetValue (m.on->load() > 0.5f ? 1.0f : 0.0f);
+    activeOptoPre = optoPre->load() > 0.5f;
 }
 
 juce::AudioProcessorEditor* KanalzugAudioProcessor::createEditor() { return new KanalzugAudioProcessorEditor (*this); }
