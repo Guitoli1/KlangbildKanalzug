@@ -11,15 +11,6 @@ gebaut mit [JUCE](https://juce.com).
 
 **Kalibrator → Drive → Duo → Box → Opto → EQ → Raum → Ausgang**
 
-Mit dem Schalter **OPTO-POSITION** oben kann der Kompressor wahlweise **vor den Drive** (also vor den Amp):
-
-**Kalibrator → Opto → Drive → Duo → Box → EQ → Raum → Ausgang**
-
-- *Nach Box* (Standard): der Kompressor glättet den fertigen Gitarrensound – wie im Studio am Mischpult.
-- *Vor Drive*: wie ein Kompressor-Pedal vor dem Amp – mehr Sustain, gleichmäßigere Verzerrung,
-  leise Töne kommen besser durch. Die Kacheln ordnen sich passend um; das Umschalten ist knackfrei.
-  Tipp: Makeup des Opto im Blick behalten – er bestimmt jetzt, wie heiß Drive und NAM-Profil angefahren werden.
-
 | Modul | Aufgabe |
 |---|---|
 | Kalibrator | Eingangspegel passend zu den NAM-Profilen |

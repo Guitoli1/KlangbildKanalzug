@@ -76,6 +76,7 @@ void OptoAudioProcessorEditor::timerCallback()
     if (showOutput)
     {
         vu.setLabel ("AUSGANG");
+        vu.setRestAtZeroVu (false);
         vu.update (proc.vuOut.load(), proc.peakOut.exchange (0.0f), dt);
     }
     else
@@ -85,6 +86,7 @@ void OptoAudioProcessorEditor::timerCallback()
         vu.setLabel ("GR");
         const float gr = proc.grDb.load();
         const float avg = juce::Decibels::decibelsToGain (-gr - 18.0f) / 1.1107f;
+        vu.setRestAtZeroVu (true);
         vu.update (avg, 0.0f, dt);
     }
 

@@ -53,6 +53,8 @@ public:
 
     // rectifiedAverage: gleichgerichteter Mittelwert (linear), peak: Spitzenwert (linear)
     void update (float rectifiedAverage, float peak, float dt);
+    // Ruhelage, wenn keine Werte mehr kommen: links (Pegel) oder 0 VU (Pegelreduktion)
+    void setRestAtZeroVu (bool b) { restAtZeroVu = b; }
     void paint (juce::Graphics&) override;
     void setLabel (const juce::String& s) { if (s != name) { name = s; repaint(); } }
 
@@ -61,6 +63,8 @@ private:
 
     VintageLookAndFeel& lnf;
     juce::String name;
+    float lastAvg = -1.0f, staleTime = 0.0f;
+    bool restAtZeroVu = false;
     float position = 0.0f, velocity = 0.0f;   // Zeigerstellung 0..1 (inkl. Masse/Feder)
     float peakHold = 0.0f;   // Haltezeit der Peak-Lampe in Sekunden
     int peakLevel = 0;       // 0 = aus, 1 = bernstein (ab -6 dBFS), 2 = rot (ab -1 dBFS)

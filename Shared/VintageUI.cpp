@@ -266,8 +266,16 @@ juce::Font VintageLookAndFeel::getPopupMenuFont() { return labelFontRegular (15.
 //==============================================================================
 void VuMeter::update (float avg, float peak, float dt)
 {
+    // Kommt kein neuer Wert mehr (Plugin in Logic ausgeschaltet oder angehalten),
+    // fällt der Zeiger nach einer Viertelsekunde in seine Ruhelage zurück
+    if (avg == lastAvg) staleTime += dt; else staleTime = 0.0f;
+    lastAvg = avg;
+    const bool stale = staleTime > 0.25f;
+    if (stale) peak = 0.0f;
+
     const float vu = juce::Decibels::gainToDecibels (avg * 1.1107f, -80.0f) + 18.0f;   // 0 VU = -18 dBFS (Sinus)
-    const float target = juce::jlimit (0.0f, 1.12f, avg > 1.0e-6f ? vuToFraction (vu) : 0.0f);
+    const float target = stale ? (restAtZeroVu ? vuToFraction (0.0f) : 0.0f)
+                               : juce::jlimit (0.0f, 1.12f, avg > 1.0e-6f ? vuToFraction (vu) : 0.0f);
 
     // Zeiger mit Masse und Feder: ~300 ms Anstiegszeit, leichtes Überschwingen wie ein echtes VU-Meter
     constexpr float omega = 13.0f, zeta = 0.78f;
