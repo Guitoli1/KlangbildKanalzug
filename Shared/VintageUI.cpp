@@ -268,7 +268,7 @@ void VuMeter::update (float avg, float peak, float dt)
 {
     // Kommt kein neuer Wert mehr (Plugin in Logic ausgeschaltet oder angehalten),
     // fällt der Zeiger nach einer Viertelsekunde in seine Ruhelage zurück
-    if (avg == lastAvg) staleTime += dt; else staleTime = 0.0f;
+    if (juce::exactlyEqual (avg, lastAvg)) staleTime += dt; else staleTime = 0.0f;
     lastAvg = avg;
     const bool stale = staleTime > 0.25f;
     if (stale) peak = 0.0f;

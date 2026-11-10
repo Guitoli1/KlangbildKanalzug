@@ -1,5 +1,6 @@
 #include "KanalzugProcessor.h"
 #include "KanalzugEditor.h"
+#include "ScaledEditor.h"
 
 #include "../Modules/Kal/PluginProcessor.h"
 #include "../Modules/Drive/PluginProcessor.h"
@@ -242,6 +243,6 @@ void KanalzugAudioProcessor::setStateInformation (const void* data, int sizeInBy
     activeOptoPre = optoPre->load() > 0.5f;
 }
 
-juce::AudioProcessorEditor* KanalzugAudioProcessor::createEditor() { return new KanalzugAudioProcessorEditor (*this); }
+juce::AudioProcessorEditor* KanalzugAudioProcessor::createEditor() { return new kb::ScaledEditor (*this, new KanalzugAudioProcessorEditor (*this)); }
 
 juce::AudioProcessor* JUCE_CALLTYPE createPluginFilter() { return new KanalzugAudioProcessor(); }
