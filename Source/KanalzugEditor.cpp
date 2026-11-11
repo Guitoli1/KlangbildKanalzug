@@ -44,8 +44,9 @@ KanalzugAudioProcessorEditor::KanalzugAudioProcessorEditor (KanalzugAudioProcess
     addAndMakeVisible (vuLeft);
     addAndMakeVisible (vuRight);
     addAndMakeVisible (moduleHolder);
+    addAndMakeVisible (modulePresets);
 
-    setSize (1120, 800);
+    setSize (1120, 840);
     selectModule (juce::jlimit (0, KanalzugAudioProcessor::numModules - 1, (int) proc.apvts.state.getProperty ("selected", 2)));
     startTimerHz (60);
 }
@@ -68,6 +69,11 @@ void KanalzugAudioProcessorEditor::selectModule (int index)
 
     moduleEditor.reset();
     moduleEditor.reset (proc.getModule (index).createEditorIfNeeded());
+    {
+        const juce::String t (KanalzugAudioProcessor::moduleInfos()[(size_t) index].title);
+        modulePresets.setTarget (&proc.getModule (index), kb::PresetBar::deviceFromTitle (t));
+        modulePresets.setTitleText ("MODUL " + t);
+    }
     if (moduleEditor != nullptr)
         moduleHolder.addAndMakeVisible (*moduleEditor);
     layoutModuleEditor();
@@ -210,7 +216,8 @@ void KanalzugAudioProcessorEditor::resized()
     optoPosSwitch.setBounds (W - 24 - 320 - 86 - 150, 36, 130, 40);
     layoutTiles();
 
-    moduleArea = juce::Rectangle<int> (16, 194, W - 32, getHeight() - 194 - 14);
+    modulePresets.setBounds (16, 190, W - 32, kb::PresetBar::height);
+    moduleArea = juce::Rectangle<int> (16, 190 + kb::PresetBar::height + 10, W - 32, getHeight() - 190 - kb::PresetBar::height - 10 - 14);
     renderTolex();
     layoutModuleEditor();
 }

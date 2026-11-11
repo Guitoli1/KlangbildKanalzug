@@ -3,6 +3,7 @@
 #include <juce_audio_processors/juce_audio_processors.h>
 #include "KanalzugProcessor.h"
 #include "VintageUI.h"
+#include "PresetBar.h"
 
 class KanalzugAudioProcessorEditor : public juce::AudioProcessorEditor, private juce::Timer
 {
@@ -43,6 +44,7 @@ private:
     VuMeter vuLeft { lnf, "L" }, vuRight { lnf, "R" };
 
     juce::Component moduleHolder;
+    kb::PresetBar modulePresets;
     std::unique_ptr<juce::AudioProcessorEditor> moduleEditor;
     int selected = -1;
 
